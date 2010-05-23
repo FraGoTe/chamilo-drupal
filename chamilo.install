@@ -1,0 +1,71 @@
+<?php
+// $Id$
+
+/**
+ * Implementation of hook_install().
+ */
+function chamilo_install() {
+  drupal_install_schema('chamilo');
+}
+
+/**
+ * Implementation of hook_uninstall().
+ */
+function chamilo_uninstall() {
+  drupal_uninstall_schema('chamilo');
+  variable_del('chamilo_user');
+  variable_del('chamilo_accounts');
+  variable_del('chamilo_server');
+  variable_del('chamilo_appkey');
+  variable_del('chamilo_courses_block_items');
+}
+
+/**
+ * Implementation of hook_schema().
+ */
+function chamilo_schema() {
+  $schema['chamilo_user'] = array(
+    'description' => 'The table that store user data about chamilo.',
+    'fields' => array(
+      'uid' => array(
+        'description' => 'The {users}.uid data owner.',
+        'type' => 'int',
+        'not null' => TRUE,
+        'default' => 0,
+      ),
+      'duser' => array(
+        'description' => 'Chamilo user for actual uid.',
+        'type' => 'varchar',
+        'length' => 20,
+        'not null' => TRUE,
+        'default' => '',
+      ),
+      'apikey' => array(
+        'description' => 'Chamilo user apikey for actual uid.',
+        'type' => 'varchar',
+        'length' => 32,
+        'not null' => TRUE,
+        'default' => '',
+      ),
+      'course_visibility' => array(
+        'description' => 'Course visibilility.',
+        'type' => 'varchar',
+        'length' => 255,
+        'not null' => TRUE,
+        'default' => '',
+      ),
+      'agenda_time_frame' => array(
+        'description' => 'Time frame of shown agenda items.',
+        'type' => 'int',
+        'not null' => TRUE,
+        'default' => 0,
+      ),
+    ),
+    'indexes' => array(
+      'uid' => array('uid'),
+    ),
+    'primary key' => array('uid'),
+  );
+
+  return $schema;
+}
