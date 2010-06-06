@@ -1,12 +1,8 @@
 ; $Id$
-name = Chamilo
+name = Chamilo Integration
 description = Integration with Chamilo.
 package = Chamilo
-core = 6.x
-
-; Information added by drupal.org packaging script on 2009-07-22
-version = "6.x-1.x-dev"
-core = "6.x"
-project = "chamilo"
-datestamp = "1248264581"
-
+core = 7.x
+files[] = chamilo.module
+files[] = chamilo.admin.inc
+files[] = chamilo.install

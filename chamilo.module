@@ -1,4 +1,4 @@
-<?php
+<?php                       
 // $Id$
 
 /**
@@ -37,7 +37,7 @@ function chamilo_sso_protocol() {
  */
 function chamilo_sso_auth($account) {
   global $base_path;
-  $master_auth_uri = filter_xss($_SERVER['HTTP_HOST']) . $base_path . '?q=user';
+  $master_auth_uri = $base_path .'?q=user';
   // Master Cookie
   $sso = array(
     'username' => $account->name,
@@ -50,12 +50,12 @@ function chamilo_sso_auth($account) {
   $cookie = base64_encode(serialize($sso));
 
   // Redirect to Vanity Server
-  $url = chamilo_sso_protocol() . $master_auth_uri;
+  $url = chamilo_sso_protocol() . filter_xss($_SERVER['HTTP_HOST']) . $master_auth_uri;
   $params = 'sso_referer='. urlencode($url) .'&sso_cookie='. urlencode($cookie);
   header('Location: '. filter_xss($_GET['sso_referer']) .'?'. $params);
-  ?><html>
-<head><title><?php print t('Redirection');?></title>
-</head><body><?php print t('Please wait...');?></body></html><?php
+?><html>
+              <head><title><?php print t('Redirection');?></title>
+              </head><body><?php print t('Please wait...');?></body></html><?php
   exit;
 }
 
@@ -64,19 +64,13 @@ function chamilo_soap_call() {
   $params = func_get_args();
   $service = array_shift($params);
   $action = array_shift($params);
-  
   ini_set('soap.wsdl_cache_enabled', 0);
   // Init SOAP client
-  $service_path = chamilo_get_service_path($service);
-  if ($service_path) {
-    $client = new SoapClient($service_path);
-    $chamilo_user = variable_get('chamilo_user', '');
-    $signature = chamilo_get_signature();
-    // Make call and its return result
-    return call_user_method_array($action, $client, array_merge(array($chamilo_user, $signature), $params));
-  } else {
-    return FALSE;
-  }
+  $client = new SoapClient(chamilo_get_service_path($service));
+  $chamilo_user = variable_get('chamilo_user', '');
+  $signature = chamilo_get_signature();
+  // Make call and its return result
+  return call_user_method_array($action, $client, array_merge(array($chamilo_user, $signature), $params));
 }
 
 /**
@@ -90,8 +84,9 @@ function chamilo_user($op, &$edit, &$account, $category = NULL) {
       }
       break;
 
-    case 'load':
+    case 'loadd':
       static $chamilo_accounts;
+
       if (!isset($chamilo_accounts)) {
         $chamilo_accounts = variable_get('chamilo_accounts', array());
       }
@@ -99,174 +94,151 @@ function chamilo_user($op, &$edit, &$account, $category = NULL) {
         $account->chamilo_user = in_array($account->uid, $chamilo_accounts);
       }
       chamilo_load_user_data($account);
+
       break;
+  }
+}
 
-    case 'form':
-      $admin_access = user_access('administer chamilo');
-      $connect_access = user_access('connect with own Chamilo account');
-      $sync_access = user_access('sync users with Chamilo accounts');
-      if ($category == 'account' && ($connect_access || $sync_access || $admin_access)) {
-        $form['chamilo_settings'] = array(
-          '#type' => 'fieldset',
-          '#title' => t('Chamilo settings'),
-          '#collapsible' => TRUE,
-          '#weight' => 1,
-          '#tree' => TRUE,
-        );
-        if ($sync_access || $admin_access) {
-          $form['chamilo_settings']['sync_account'] = array(
-            '#type' => 'checkbox',
-            '#title' => t('Sync with a Chamilo account.'),
-            '#default_value' => in_array($account->uid, variable_get('chamilo_accounts', array())),
-            '#description' => t('If enabled, system will create or override a Chamilo account with same username, email and password.')
-          );
+/**
+ * Implementation of hook_user_submit().
+ */
+function chamilo_user_update(&$edit, &$account, $category = NULL) {
+  $admin_access = user_access('administer chamilo');
+  $connect_access = user_access('connect with own Chamilo account');
+  $sync_access = user_access('sync users with Chamilo accounts');
+  if ($category == 'account') {
+    if (!isset($edit['chamilo_settings']['sync_account']) && ($sync_access || $admin_access)) {
+      $users = variable_get('chamilo_accounts', array());
+      // Sync account
+      if ($edit['chamilo_settings']['sync_account']) {
+        // Check as chamilo account
+        $chamilo_account = chamilo_soap_call('user_manager', 'DokeosWSUserInfoFromUsername', array('name' => $edit['name']));
+        // Deterimine wether to Create or Override account at chamilo
+        if (isset($chamilo_account->firstName) ? $chamilo_account->username == '' : FALSE) {
+          $action = 'DokeosWSCreateUser';
         }
-        if ($connect_access || $admin_access) {
-          $form['chamilo_settings']['chamilo_user'] = array(
-            '#type' => 'textfield',
-            '#title' => t('Chamilo username'),
-            '#default_value' => $account->chamilo_settings['user'],
-            '#description' => t('Chamilo username.'),
-          );
-
-          $api_key_url = chamilo_sso_protocol() . variable_get('chamilo_server', '') . CHAMILO_API_KEY_URL;
-
-          $form['chamilo_settings']['chamilo_apikey'] = array(
-            '#type' => 'textfield',
-            '#title' => t('Chamilo API key'),
-            '#default_value' => $account->chamilo_settings['apikey'],
-            '#description' => t('Chamilo API key. Find your API key in your Chamilo Profile by clicking <a href="@url">here</a>.',array('@url' => $api_key_url)),
-          );
-          $form['chamilo_settings']['chamilo_course_visibility'] = array(
-            '#type' => 'checkboxes',
-            '#title' => t('Trainings Visibilities'),
-            '#description' => t('If this site displays a block with a list of your courses, will be filtered by criterias above.'),
-            '#default_value' => !empty($account->chamilo_settings['course_visibility'])? $account->chamilo_settings['course_visibility']: array(),
-            '#options' => chamilo_course_visibility(),
-          );
-          $form['chamilo_settings']['agenda_time_frame'] = array(
-            '#type' => 'radios',
-            '#title' => t('Agenda time frame'),
-            '#default_value' => $account->chamilo_settings['agenda_time_frame'],
-            '#options' => chamilo_agenda_time_frame(TRUE),
-          );
-        }
-        return $form;
-      }
-      break;
-
-    case 'update':
-      $admin_access = user_access('administer chamilo');
-      $connect_access = user_access('connect with own Chamilo account');
-      $sync_access = user_access('sync users with Chamilo accounts');
-
-      if ($category == 'account') {
-        
-        $users = variable_get('chamilo_accounts', array());
-        // Sync account
-        if ($edit['chamilo_settings']['sync_account'] && ($sync_access || $admin_access)) {
-          
-          // Check if user has chamilo account
-          $chamilo_user_courses = chamilo_soap_call('user_info', 'DokeosWSCourseListOfUser');
-          // Deterimine wether to Create or Override account at chamilo
-          if (is_array($chamilo_user_courses)) {
-            $action = 'DokeosWSCreateUser';
-          }
-          else {
-            $action = 'DokeosWSUpdateUser';
-          }
-          // Make call
-          $user = chamilo_soap_call('registration', $action, array(
-            'loginname' => $edit['name'], 'password' => ($edit['pass'] ? $edit['pass'] : $account->pass),
-            'password_crypted' => 1, 'email' => $edit['mail'],
-          ));
-
-          // Save
-          if (!isset($users[$account->uid])) {
-            $users[$account->uid] = $account->uid;
-            variable_set('chamilo_accounts', $users);
-          }
-          
-          if ($connect_access || $admin_access) {
-            chamilo_save_user_data($edit, $account, $category);
-          } 
-          
-          drupal_set_message('User succesfully syncronized with Chamilo.');
-        }
-        // Unlink account
         else {
-          // Save
-          if (isset($users[$account->uid])) {
-            unset($users[$account->uid]);
-            variable_set('chamilo_accounts', $users);
-          }
+          $action = 'DokeosWSUpdateUser';
         }
-        
-        /* if (!isset($edit['chamilo_settings']['sync_account']) && ($sync_access || $admin_access)) {
-          $users = variable_get('chamilo_accounts', array());
-          // Sync account
-          if ($edit['chamilo_settings']['sync_account']) {
-            
-            // Check as chamilo account
-            $chamilo_account = chamilo_soap_call('user_manager', 'DokeosWSUserInfoFromUsername', array('name' => $edit['name']));
-            // Deterimine wether to Create or Override account at chamilo
-            if (isset($chamilo_account->firstName) ? $chamilo_account->username == '' : FALSE) {
-              $action = 'DokeosWSCreateUser';
-            }
-            else {
-              $action = 'DokeosWSUpdateUser';
-            }
-            // Make call
-            $user = chamilo_soap_call('user_manager', $action, array(
-              'loginname' => $edit['name'], 'password' => ($edit['pass'] ? $edit['pass'] : $account->pass),
-              'password_crypted' => 1, 'email' => $edit['mail'],
-            ));
-            // Save
-            if (!isset($users[$account->uid])) {
-              $users[$account->uid] = $account->uid;
-              variable_set('chamilo_accounts', $users);
-            }
-            drupal_set_message('User succesfully syncronized with Chamilo.');
-          }
-          // Unlink account
-          else {
-            // Save
-            if (isset($users[$account->uid])) {
-              unset($users[$account->uid]);
-              variable_set('chamilo_accounts', $users);
-            }
-          }
+        // Make call
+        $user = chamilo_soap_call('user_manager', $action, array(
+          'loginname' => $edit['name'], 'password' => ($edit['pass'] ? $edit['pass'] : $account->pass),
+          'password_crypted' => 1, 'email' => $edit['mail'],
+        ));
+        // Save
+        if (!isset($users[$account->uid])) {
+          $users[$account->uid] = $account->uid;
+          variable_set('chamilo_accounts', $users);
         }
-        if ($connect_access || $admin_access) {
-          chamilo_save_user_data($edit, $account, $category);
-        } */
+        drupal_set_message('User succesfully syncronized with Chamilo.');
       }
-      break;
+      // Unlink account
+      else {
+        // Save
+        if (isset($users[$account->uid])) {
+          unset($users[$account->uid]);
+          variable_set('chamilo_accounts', $users);
+        }
+      }
+    }
+    if ($connect_access || $admin_access) {
+      chamilo_save_user_data($edit, $account, $category);
+    }
+  }
+}
+/**
+ * Implementation of hook_user_form().
+ */
+function chamilo_user_form(&$edit, &$account, $category = NULL) {
+  chamilo_load_user_data($account);
+  $admin_access = user_access('administer chamilo');
+  $connect_access = user_access('connect with own Chamilo account');
+  $sync_access = user_access('sync users with Chamilo accounts');
+  if ($category == 'account' && ($connect_access || $sync_access || $admin_access)) {
+    $form['chamilo_settings'] = array(
+      '#type' => 'fieldset',
+      '#title' => t('Chamilo settings'),
+      '#collapsible' => TRUE,
+      '#weight' => 1,
+      '#tree' => TRUE,
+    );
+    if ($sync_access || $admin_access) {
+      $form['chamilo_settings']['sync_account'] = array(
+        '#type' => 'checkbox',
+        '#title' => t('Sync with a chamilo account.'),
+        '#default_value' => in_array($account->uid, variable_get('chamilo_accounts', array())),
+        '#description' => t('If enabled, system will create or override a chamilo account with same username, email and password.')
+      );
+    }
+    if ($connect_access || $admin_access) {
+      $form['chamilo_settings']['duser'] = array(
+        '#type' => 'textfield',
+        '#title' => t('Chamilo username'),
+        '#default_value' => $account->chamilo_settings['user'],
+        '#description' => t('Chamilo username.'),
+      );
+
+      $api_key_url = chamilo_sso_protocol() . variable_get('chamilo_server', '') . CHAMILO_API_KEY_URL;
+
+      $form['chamilo_settings']['apikey'] = array(
+        '#type' => 'textfield',
+        '#title' => t('Chamilo API key'),
+        '#default_value' => $account->chamilo_settings['apikey'],
+        '#description' => t('Chamilo API key. Find your API key in your Chamilo Profile by clicking <a href="@url">here</a>.',array('@url' => $api_key_url)),
+      );
+      $form['chamilo_settings']['course_visibility'] = array(
+        '#type' => 'checkboxes',
+        '#title' => t('Trainings Visibilities'),
+        '#description' => t('If this site displays a block with a list of your courses, will be filtered by criterias above.'),
+        '#default_value' => !empty($account->chamilo_settings['course_visibility'])? $account->chamilo_settings['course_visibility']: array(),
+        '#options' => chamilo_course_visibility(),
+      );
+      $form['chamilo_settings']['agenda_time_frame'] = array(
+        '#type' => 'radios',
+        '#title' => t('Agenda time frame'),
+        '#default_value' => $account->chamilo_settings['agenda_time_frame'],
+        '#options' => chamilo_agenda_time_frame(TRUE),
+      );
+    }
+    return $form;
   }
 }
 
 function chamilo_load_user_data(&$account) {
-  $result = db_query('SELECT duser, apikey, course_visibility, agenda_time_frame FROM {chamilo_user} WHERE uid = %d', $account->uid);
-  while ($user_data = db_fetch_object($result)) {
+  $result = db_query('SELECT duser, apikey, course_visibility, agenda_time_frame FROM {chamilo_user} WHERE uid = (:uid)', array(':uid' => $account->uid));
+
+  foreach($result as $record) {
     $account->chamilo_settings = array(
-      'user' => $user_data->duser,
-      'apikey' => $user_data->apikey,
-      'course_visibility' => unserialize($user_data->course_visibility),
-      'agenda_time_frame' => $user_data->agenda_time_frame,
+      'user' => $record->duser,
+      'apikey' => $record->apikey,
+      'course_visibility' => unserialize($record->course_visibility),
+      'agenda_time_frame' => $record->agenda_time_frame,
     );
+    return;
   }
+
+  $account->chamilo_settings = array(
+      'user' => '',
+      'apikey' => '',
+      'course_visibility' => '',
+      'agenda_time_frame' => '',
+  );
 }
 
 function chamilo_save_user_data(&$edit, &$account, $category, $register = FALSE) {
   $data = &$edit['chamilo_settings'];
-  
-  // Pre-process courses visibility
-  $data['chamilo_course_visibility'] = preg_grep('/^0$/', $data['chamilo_course_visibility'], PREG_GREP_INVERT);
-  $data['chamilo_course_visibility'] = count($data['chamilo_course_visibility']) ? serialize($data['chamilo_course_visibility']) : NULL;
 
+  // Pre-process courses visibility
+  $data['course_visibility'] = preg_grep('/^0$/', $data['course_visibility'], PREG_GREP_INVERT);
+  $data['course_visibility'] = count($data['course_visibility']) ? serialize($data['course_visibility']) : NULL;
+  
+  // Pre-process agenta time frame
+  if ($data['agenda_time_frame'] == '0') {
+    $data['agenda_time_frame'] = '';
+  }
   // Look for data
   $save_data = FALSE;
-  $fields = array(NULL, 'chamilo_user', 'chamilo_apikey', 'chamilo_course_visibility', 'agenda_time_frame');
+  $fields = array(NULL, 'duser', 'apikey', 'course_visibility', 'agenda_time_frame');
   while($field = next($fields)) {
     if (!empty($data[$field]) && $data[$field]) {
       $save_data = TRUE;
@@ -275,11 +247,19 @@ function chamilo_save_user_data(&$edit, &$account, $category, $register = FALSE)
   }
 
   // Delete old user data
-  db_query("DELETE FROM {chamilo_user} WHERE uid = %d", $account->uid);
+  db_delete('chamilo_user')
+    ->condition('uid', $account->uid)
+    ->execute();
 
   if ($save_data) {
-    // Save data
-    db_query("INSERT INTO {chamilo_user} (uid, duser, apikey, course_visibility, agenda_time_frame) VALUES (%d, '%s', '%s', '%s', %d)", $account->uid, $data['chamilo_user'], $data['chamilo_apikey'], $data['chamilo_course_visibility'], $data['agenda_time_frame']);
+    $edit = (object)array(
+      'uid' => $account->uid,
+      'duser' => $data['duser'],
+      'apikey' => $data['apikey'],
+      'course_visibility' => $data['course_visibility'],
+      'agenda_time_frame' => $data['agenda_time_frame'],
+    );
+    drupal_write_record('chamilo_user', $edit);
   }
 }
 
@@ -304,96 +284,125 @@ function chamilo_get_signature($type = CHAMILO_GLOBAL_SIGNATURE) {
   switch ($type) {
     case CHAMILO_PERUSER_SIGNATURE:
       chamilo_load_user_data($user);
-      return sha1($user->chamilo_settings['user'] . $user->chamilo_settings['apikey']);
+      if (isset($user->chamilo_settings)) {
+        return sha1($user->chamilo_settings['user'] . $user->chamilo_settings['apikey']);
+      }
+      break;
+    default:
     case CHAMILO_GLOBAL_SIGNATURE:
       $chamilo_user = variable_get('chamilo_user', '');
       $chamilo_apikey = variable_get('chamilo_appkey', '');
       return sha1($chamilo_user . $chamilo_apikey);
-    default:
-      return '';
   }
 }
 
 /**
- * Implementation of hook_block().
+ * Implementation of hook_block_list().
+ */
+function chamilo_block_list() {
+  $blocks['trainings'] = array(
+    'info' => t('Chamilo trainings'),
+    'weight' => 0,
+  );
+  $blocks['user_agenda'] = array(
+    'info' => t('My Chamilo agenda'),
+    'weight' => 0,
+  );
+  $blocks['user_trainings'] = array(
+    'info' => t('My Chamilo trainings'),
+    'weight' => 0,
+  );
+  return $blocks;
+}
+
+/**
+ * Implementation of hook_block_view().
  *
  * Generates the administrator-defined blocks for display.
  */
-function chamilo_block($op = 'list', $delta = 0, $edit = array()) {
+function chamilo_block_view($delta = '') {
   global $user;
 
-  switch ($op) {
-    case 'list':
-      $blocks = array();
-      $blocks[0]['info'] = t('Chamilo trainings'); // global configuration
-      $blocks[1]['info'] = t('My Chamilo agenda'); // per user
-      $blocks[2]['info'] = t('My Chamilo trainings'); // per user
-      return $blocks;
-    case 'view':
-      if (variable_get('chamilo_server', '') == '') {
-        drupal_set_message(t("Chamilo module yet not configured, can't display blocks."));
-        return;
+  if (variable_get('chamilo_server', '') == '') {
+    drupal_set_message(t("Chamilo module yet not configured, can't display blocks."));
+    return;
+  }
+
+  $block = array();
+
+  switch ($delta) {
+    case 'trainings':
+      $signature = chamilo_get_signature();
+      $chamilo_user = variable_get('chamilo_user', '');
+      $service = chamilo_get_service_path('courses_list');
+      $client = new SoapClient($service);
+      $chamilo_courses_block_items = variable_get('chamilo_courses_block_items', array('public'));
+      foreach ($chamilo_courses_block_items as $key => $item) {
+        if ($item === 0) {
+          unset($chamilo_courses_block_items[$key]);
+        }
       }
-      switch ($delta) {
-        case 0:
-          $signature = chamilo_get_signature();
-          $chamilo_user = variable_get('chamilo_user', '');
-          $service = chamilo_get_service_path('courses_list');
-          $client = new SoapClient($service);
-          //exit('<pre>'.print_r($service,TRUE));
-          $data['subject'] = t('Chamilo trainings');
-          $chamilo_courses_block_items = variable_get('chamilo_courses_block_items', array('public'));
-          foreach ($chamilo_courses_block_items as $key => $item) {
-            if ($item === 0) {
-              unset($chamilo_courses_block_items[$key]);
-            }
-          }
-          $visibilities = implode(',', $chamilo_courses_block_items);
-          $courses = $client->DokeosWSCourseList($chamilo_user, $signature, $visibilities);
-          $data['content'] = theme_chamilo_course_list($courses);
-          break;
-        case 1:
-          chamilo_load_user_data($user);
-          $signature = chamilo_get_signature(CHAMILO_PERUSER_SIGNATURE);
-          $service = chamilo_get_service_path('user_info');
-          $data['subject'] = t('My Chamilo agenda');
-          $agenda_time_frame = !empty($user->chamilo_settings['agenda_time_frame'])? $user->chamilo_settings['agenda_time_frame']: 30;
-          $datestart = (int) date('Ymd');
-          $dateend = (int) date('Ymd', strtotime("+$agenda_time_frame days"));
-          $client = new SoapClient($service);
-          $agenda = $client->DokeosWSEventsList($user->chamilo_settings['user'], $signature, $datestart, $dateend);
-          $data['content'] = theme_chamilo_user_agenda_list($agenda);
-          break;
-        case 2:
-          chamilo_load_user_data($user);
-          $signature = chamilo_get_signature(CHAMILO_PERUSER_SIGNATURE);
-          $service = chamilo_get_service_path('user_info');
-          $data['subject'] = t('My Chamilo trainings');
-          $client = new SoapClient($service);
-          $agenda = $client->DokeosWSCourseListOfUser($user->chamilo_settings['user'], $signature);
-          $data['content'] = theme_chamilo_course_list($agenda);
-          break;
-      }
-      return $data;
+      $visibilities = implode(',', $chamilo_courses_block_items);
+      $visibilities = 'public-registered';
+      $courses = $client->DokeosWSCourseList($chamilo_user, $signature, $visibilities);
+      $block = array(
+        'subject' => t('Chamilo trainings'),
+        'content' => theme('chamilo_course_list', $courses),
+      );
       break;
-    case 'configure':
-      switch ($delta) {
-        case 0;
-          $form['items'] = array(
-            '#type' => 'checkboxes',
-            '#title' => t('Trainings Visibilities'),
-            '#default_value' => variable_get('chamilo_courses_block_items', array()),
-            '#options' => chamilo_course_visibility(),
-          );
-          return $form;
+    case 'user_agenda':
+      if (isset($user->chamilo_settings)) {
+        $signature = chamilo_get_signature(CHAMILO_PERUSER_SIGNATURE);
+        $service = chamilo_get_service_path('user_info');
+        $agenda_time_frame = !empty($user->chamilo_settings['agenda_time_frame'])? $user->chamilo_settings['agenda_time_frame']: 30;
+        $datestart = (int) date('Ymd');
+        $dateend = (int) date('Ymd', strtotime("+$agenda_time_frame days"));
+        $client = new SoapClient($service);
+        $agenda = $client->DokeosWSEventsList($user->chamilo_settings['user'], $signature, $datestart, $dateend);
+        $block = array(
+          'subject' => t('My Chamilo agenda'),
+          'content' => theme('chamilo_user_agenda_list', $agenda),
+        );
       }
       break;
-    case 'save':
-      switch ($delta) {
-        case 0;
-          variable_set('chamilo_courses_block_items', $edit['items']);
-          break;
+    case 'user_trainings':
+      if (isset($user->chamilo_settings)) {
+        $signature = chamilo_get_signature(CHAMILO_PERUSER_SIGNATURE);
+        $service = chamilo_get_service_path('user_info');
+        $client = new SoapClient($service);
+        $agenda = $client->DokeosWSCourseListOfUser($user->chamilo_settings['user'], $signature);
+        $data['content'] = theme_chamilo_course_list($agenda);
+        $block = array(
+          'subject' => t('My Chamilo trainings'),
+          'content' => theme('chamilo_course_list', $agenda),
+        );
       }
+      break;
+  }
+  return $block;
+}
+
+/**
+ * Implementation of hook_block_configure().
+ */
+function chamilo_block_configure($delta = '') {
+  if ($delta == 'trainings') {
+    $form['items'] = array(
+      '#type' => 'checkboxes',
+      '#title' => t('Trainings Visibilities'),
+      '#default_value' => variable_get('chamilo_courses_block_items', array()),
+      '#options' => chamilo_course_visibility(),
+    );
+    return $form;
+  }
+}
+
+/**
+ * Implementation of hook_block_save().
+ */
+function chamilo_block_save($delta = '') {
+  if ($delta == 'trainings') {
+    variable_set('chamilo_courses_block_items', $edit['items']);
   }
 }
 
@@ -415,7 +424,7 @@ function chamilo_theme($existing, $type, $theme, $path) {
 }
 
 /**
- * Implementation of hook_theme (or should be)
+ * Prepare courses list
  * @param   Array
  *    A list of course details as returned by chamilo_curl_exec()
  */
@@ -458,7 +467,16 @@ function theme_chamilo_user_agenda_list($agenda_items) {
  * Implementation of hook_perm().
  */
 function chamilo_perm() {
-  return array('administer chamilo', 'connect with own Chamilo account'/*, 'sync users with Chamilo accounts'*/);
+  return array(
+    'administer chamilo' => array(
+      'title' => t('Administer chamilo'),
+      'description' => t('Let configure Chamilo integration settings.'),
+    ),
+    'connect with own Chamilo account' => array(
+      'title' => t('connect with own Chamilo account'),
+      'description' => t('Access to SSO and user blocks.'),
+    ),
+  );
 }
 
 /**
@@ -479,7 +497,7 @@ function chamilo_agenda_time_frame($optional = FALSE) {
   if (!is_array($time_frames)) {
     $time_keys = array(30 => '', 15 => '', 7 => '');
     // Describe time frames
-    $time_frames = $optional ? array('' => t('Disabled')) : array();
+    $time_frames = $optional ? array('0' => t('Disabled')) : array();
     foreach ($time_keys as $f => $d) {
       $time_frames[$f] = t('between now and within next !n days', array('!n' => $f));
     }
@@ -495,7 +513,7 @@ function chamilo_get_service_path($service) {
   static $services;
   $chamilo_server = variable_get('chamilo_server', '');
   if (!isset($services)) {
-    $services = array('courses_list', 'user_info', 'registration');
+    $services = array('courses_list', 'user_info');
   }
   if (in_array($service, $services)) {
     return chamilo_sso_protocol(). $chamilo_server . CHAMILO_BASE_URL .'/'. $service .'.soap.php?wsdl';

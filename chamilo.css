@@ -1,7 +1,8 @@
 /**
 * @file
-* This file gives general display rules for the Chamilo info blocks 
+* This file gives general display rules for the Dokeos info blocks 
 */
+
 /**
 * Courses list blocks
 */
@@ -18,6 +19,7 @@
   margin-left: 1em;
   margin-top: -0.5em;
 }
+
 /**
 * Agenda (Event list) blocks
 */
