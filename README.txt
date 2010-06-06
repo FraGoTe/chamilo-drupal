@@ -1,21 +1,21 @@
 $Id$
 
-Dokeos-Drupal module
+Chamilo-Drupal module
 ====================
 This module provides connectivity between a Drupal website and a Chamilo
 LMS. Although stable, this module still lacks a good pack of usability
 features, so please try it on a test server before you put it online.
 
 Its current features are
-- Single Sign On from Drupal to Dokeos
-- View list of Dokeos courses in a Drupal block
-- View list of own Dokeos courses in a Drupal block
-- View list of own Dokeos events in a Drupal block
+- Single Sign On from Drupal to Chamilo
+- View list of Chamilo courses in a Drupal block
+- View list of own Chamilo courses in a Drupal block
+- View list of own Chamilo events in a Drupal block
 
 To enable the Single Sign On, you should:
 - always use HTTPS (because otherwise your call to Chamilo is not
   secure)
-- insert new variables in the Dokeos main.settings_current table:
+- insert new variables in the Chamilo main.settings_current table:
 INSERT INTO settings_current 
 (variable, subkey, type, category, selected_value, title, comment, scope, subkeytext)
 VALUES
@@ -34,7 +34,7 @@ VALUES
 ('sso_authentication_protocol', 'http://', 'http://'),
 ('sso_authentication_protocol', 'https://', 'https://');
 
-- login on your Dokeos portal and configure the SSO module from the
+- login on your Chamilo portal and configure the SSO module from the
   Security tab in your admin section
 
 - at this point, and before doing anything else, it is essential that
