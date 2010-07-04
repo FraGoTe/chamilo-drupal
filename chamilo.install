@@ -5,14 +5,12 @@
  * Implementation of hook_install().
  */
 function chamilo_install() {
-  drupal_install_schema('chamilo');
 }
 
 /**
  * Implementation of hook_uninstall().
  */
 function chamilo_uninstall() {
-  drupal_uninstall_schema('chamilo');
   variable_del('chamilo_user');
   variable_del('chamilo_accounts');
   variable_del('chamilo_server');
