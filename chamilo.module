@@ -253,7 +253,7 @@ function chamilo_user_update(&$edit, &$account, $category = NULL) {
 }
 
 function chamilo_load_user_data(&$account) {
-  $result = db_query('SELECT duser, apikey, course_visibility, agenda_time_frame FROM {chamilo_user} WHERE uid = (:uid)', array(':uid' => $account->uid));
+  $result = db_query('SELECT duser, apikey, course_visibility, agenda_time_frame FROM {chamilo_user} WHERE user_id = (:uid)', array(':uid' => $account->uid));
 
   foreach($result as $record) {
     $account->chamilo_settings = array(
@@ -296,12 +296,12 @@ function chamilo_save_user_data(&$edit, &$account, $category, $register = FALSE)
 
   // Delete old user data
   db_delete('chamilo_user')
-    ->condition('uid', $account->uid)
+    ->condition('user_id', $account->uid)
     ->execute();
 
   if ($save_data) {
     $edit = (object)array(
-      'uid' => $account->uid,
+      'user_id' => $account->uid,
       'duser' => $data['duser'],
       'apikey' => $data['apikey'],
       'course_visibility' => $data['course_visibility'],
