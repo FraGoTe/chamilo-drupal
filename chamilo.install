@@ -25,7 +25,7 @@ function chamilo_schema() {
   $schema['chamilo_user'] = array(
     'description' => 'The table that store user data about chamilo.',
     'fields' => array(
-      'uid' => array(
+      'user_id' => array(
         'description' => 'The {users}.uid data owner.',
         'type' => 'int',
         'not null' => TRUE,
@@ -59,10 +59,7 @@ function chamilo_schema() {
         'default' => 0,
       ),
     ),
-    'indexes' => array(
-      'uid' => array('uid'),
-    ),
-    'primary key' => array('uid'),
+    'primary key' => array('user_id'),
   );
 
   return $schema;
