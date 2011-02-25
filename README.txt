@@ -1,4 +1,3 @@
-$Id$
 
 Chamilo-Drupal module
 ====================

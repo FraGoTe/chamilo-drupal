@@ -1,4 +1,3 @@
-; $Id$
 name = Chamilo Integration
 description = Integration with Chamilo.
 package = Chamilo
