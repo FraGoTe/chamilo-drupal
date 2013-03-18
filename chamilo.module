@@ -96,6 +96,21 @@ function chamilo_user_categories() {
 }
 
 /**
+ * Implementation of hook_menu_alter() to pair with hook_user_categories - see http://api.drupal.org/api/drupal/modules!user!user.api.php/function/hook_user_categories/7
+ */
+/*
+function chamilo_menu_alter(&$items){
+ 
+  // Need to add user category tabs here like this
+  // first in hook_user_categories, then here to expand
+  $items['user/%user_category/edit/chamilo']['page callback'] = 'chamilo_customer_profile_form_wrapper';
+  $items['user/%user_category/edit/chamilo']['page arguments'] = array(1);
+  $items['user/%user_category/edit/chamilo']['module'] = 'chamilo';
+  $items['user/%user_category/edit/chamilo']['file'] = 'chamilo.module';
+}
+*/
+
+/**
  * Implementation of hook_field_attach_form
  */
 function chamilo_field_attach_form($entity_type, $entity, &$form, &$form_state, $langcode) {
@@ -216,13 +231,13 @@ function chamilo_user_update(&$edit, &$account, $category = NULL) {
       // Sync account
       if ($edit['chamilo_settings']['sync_account']) {
         // Check as chamilo account
-        $chamilo_account = chamilo_soap_call('user_manager', 'DokeosWSUserInfoFromUsername', array('name' => $edit['name']));
+        $chamilo_account = chamilo_soap_call('user_manager', 'WSGetUserFromUsername', array('username' => $edit['name']));
         // Deterimine wether to Create or Override account at Chamilo
         if (isset($chamilo_account->firstName) ? $chamilo_account->username == '' : FALSE) {
-          $action = 'DokeosWSCreateUser';
+          $action = 'WSCreateUser';
         }
         else {
-          $action = 'DokeosWSUpdateUser';
+          $action = 'WSEditUser';
         }
         // Make call
         $user = chamilo_soap_call('user_manager', $action, array(
@@ -393,7 +408,7 @@ function chamilo_block_view($delta = '') {
       }
       $visibilities = implode(',', $chamilo_courses_block_items);
       $visibilities = 'public-registered';
-      $courses = $client->DokeosWSCourseList($chamilo_user, $signature, $visibilities);
+      $courses = $client->WSCourseList($chamilo_user, $signature, $visibilities);
       $block = array(
         'subject' => t('Chamilo trainings'),
         'content' => theme('chamilo_course_list', $courses),
@@ -408,7 +423,7 @@ function chamilo_block_view($delta = '') {
         $datestart = (int) date('Ymd');
         $dateend = (int) date('Ymd', strtotime("+$agenda_time_frame days"));
         $client = new SoapClient($service);
-        $agenda = $client->DokeosWSEventsList($user->chamilo_settings['user'], $signature, $datestart, $dateend);
+        $agenda = $client->WSEventsList($user->chamilo_settings['user'], $signature, $datestart, $dateend);
         $block = array(
           'subject' => t('My Chamilo agenda'),
           'content' => theme('chamilo_user_agenda_list', $agenda),
@@ -421,10 +436,10 @@ function chamilo_block_view($delta = '') {
         $signature = chamilo_get_signature(CHAMILO_PERUSER_SIGNATURE);
         $service = chamilo_get_service_path('user_info');
         $client = new SoapClient($service);
-        $agenda = $client->DokeosWSCourseListOfUser($user->chamilo_settings['user'], $signature);
+        $agenda = $client->WSCourseListOfUser($user->chamilo_settings['user'], $signature);
         $data['content'] = theme_chamilo_course_list($agenda);
         $block = array(
-          'subject' => t('My Chamilo trainings'),
+          'subject' => t('My Chamilo Courses'),
           'content' => theme('chamilo_course_list', $agenda),
         );
       }
