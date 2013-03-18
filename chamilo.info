@@ -2,6 +2,7 @@ name = Chamilo Integration
 description = Integration with Chamilo.
 package = Chamilo
 core = 7.x
+configure = admin/config/system/chamilo
 files[] = chamilo.module
 files[] = chamilo.admin.inc
 files[] = chamilo.install
