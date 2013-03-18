@@ -22,7 +22,7 @@ function chamilo_uninstall() {
  */
 function chamilo_schema() {
   $schema['chamilo_user'] = array(
-    'description' => 'The table that store user data about chamilo.',
+    'description' => 'The table storing Chamilo user data.',
     'fields' => array(
       'user_id' => array(
         'description' => 'The {users}.uid data owner.',
