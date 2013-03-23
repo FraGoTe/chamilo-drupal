@@ -111,10 +111,11 @@ function chamilo_menu_alter(&$items){
 */
 
 /**
- * Implementation of hook_field_attach_form
+ * Implementation of hook_form_FORM_ID_alter()
  */
-function chamilo_field_attach_form($entity_type, $entity, &$form, &$form_state, $langcode) {
-  if ($entity_type == 'user') {
+function chamilo_form_user_profile_form_alter(&$form, &$form_state, $form_id) {
+  if (is_object($form['#user']) && !empty($form['#user']->uid)) {
+    $entity = $form['#user'];
     chamilo_load_user_data($entity);
     $admin_access = user_access('administer chamilo');
     $connect_access = user_access('connect with own Chamilo account');
@@ -219,7 +220,7 @@ function chamilo_user_load($users) {
 */
 
 /**
- * Implementation of hook_user_submit().
+ * Implementation of hook_user_update().
  */
 function chamilo_user_update(&$edit, &$account, $category = NULL) {
   $admin_access = user_access('administer chamilo');
@@ -291,6 +292,9 @@ function chamilo_save_user_data(&$edit, &$account, $category, $register = FALSE)
   $data = &$edit['chamilo_settings'];
 
   // Pre-process courses visibility
+  if (!is_array($data['course_visibility'])) {
+    $data['course_visibility'] = array($data['course_visibility']);
+  }
   $data['course_visibility'] = preg_grep('/^0$/', $data['course_visibility'], PREG_GREP_INVERT);
   $data['course_visibility'] = count($data['course_visibility']) ? serialize($data['course_visibility']) : NULL;
   
