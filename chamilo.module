@@ -128,6 +128,7 @@ function chamilo_form_user_profile_form_alter(&$form, &$form_state, $form_id) {
         '#weight' => 1,
         '#tree' => TRUE,
       );
+/* This section is only for admins
       if ($sync_access || $admin_access) {
         $form['chamilo_settings']['sync_account'] = array(
           '#type' => 'checkbox',
@@ -136,6 +137,7 @@ function chamilo_form_user_profile_form_alter(&$form, &$form_state, $form_id) {
           '#description' => t('If enabled, system will create or override a chamilo account with same username, email and password.')
         );
       }
+*/
       if ($connect_access || $admin_access) {
         $form['chamilo_settings']['duser'] = array(
           '#type' => 'textfield',
