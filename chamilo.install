@@ -31,7 +31,7 @@ function chamilo_schema() {
         'default' => 0,
       ),
       'duser' => array(
-        'description' => 'Chamilo user for actual uid.',
+        'description' => 'Chamilo user for actual uid (called duser for its original meaning of Dokeos user and left like that to avoid breaking compatibility).',
         'type' => 'varchar',
         'length' => 20,
         'not null' => TRUE,
