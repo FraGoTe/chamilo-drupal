@@ -25,6 +25,13 @@ function chamilo_admin_settings_form() {
     '#description' => t('NOTICE: Do NOT use trailing slash nor http://. i.e: yourchamilosite.com'),
     '#default_value' => variable_get('chamilo_server', ''),
   );
+  $form['chamilo_courses_block_items'] = array(
+    '#type' => 'checkboxes',
+    '#title' => t('Trainings Visibilities'),
+    '#description' => t('If this site displays a block with a list of your courses, will be filtered by criterias above.'),
+    '#default_value' => variable_get('chamilo_courses_block_items', array('public')),
+    '#options' => chamilo_course_visibility(),
+  );
   $form['chamilo_user'] = array(
     '#type' => 'textfield',
     '#title' => t('Username'),

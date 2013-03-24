@@ -152,13 +152,17 @@ function chamilo_form_user_profile_form_alter(&$form, &$form_state, $form_id) {
           '#default_value' => $entity->chamilo_settings['apikey'],
           '#description' => t('Chamilo API key. Find your API key in your Chamilo Profile by clicking <a href="@url">here</a>.',array('@url' => $api_key_url)),
         );
-        $form['chamilo_settings']['course_visibility'] = array(
-          '#type' => 'checkboxes',
-          '#title' => t('Trainings Visibilities'),
-          '#description' => t('If this site displays a block with a list of your courses, will be filtered by criterias above.'),
-          '#default_value' => !empty($entity->chamilo_settings['course_visibility'])? $entity->chamilo_settings['course_visibility']: array(),
-          '#options' => chamilo_course_visibility(),
-        );
+/* This section is only for admins, and it has been moved to chamilo.admin.inc, to the module config form
+        if ($admin_access) {
+          $form['chamilo_settings']['course_visibility'] = array(
+            '#type' => 'checkboxes',
+            '#title' => t('Trainings Visibilities'),
+            '#description' => t('If this site displays a block with a list of your courses, will be filtered by criterias above.'),
+            '#default_value' => !empty($entity->chamilo_settings['course_visibility'])? $entity->chamilo_settings['course_visibility']: array(),
+            '#options' => chamilo_course_visibility(),
+          );
+        }
+*/
         $form['chamilo_settings']['agenda_time_frame'] = array(
           '#type' => 'radios',
           '#title' => t('Agenda time frame'),
@@ -411,7 +415,7 @@ function chamilo_block_view($delta = '') {
         }
       }
       $visibilities = implode(',', $chamilo_courses_block_items);
-      $visibilities = 'public-registered';
+      //$visibilities = 'public-registered';
       $courses = $client->WSCourseList($chamilo_user, $signature, $visibilities);
       $block = array(
         'subject' => t('Chamilo trainings'),
