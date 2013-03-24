@@ -28,6 +28,10 @@ function chamilo_init() {
 }
 */
 
+/**
+ * Returns the protocol used to connect to Chamilo
+ * @return string 'http://' or 'https://', depending on variable stored in Chamilo module's config
+ */
 function chamilo_sso_protocol() {
   $protocols = array('http://', 'https://');
   return $protocols[variable_get('chamilo_sso_protocol', 0)];
@@ -35,6 +39,7 @@ function chamilo_sso_protocol() {
 
 /**
  * Given a drupal account, redirect to Vanity server including login info.
+ * @param object User account object
  */
 /* TODO
 function chamilo_sso_auth($account) {
@@ -62,6 +67,12 @@ function chamilo_sso_auth($account) {
 }
 */
 
+/**
+ * Builds a SOAP call to Chamilo web services with the given parameters
+ * @param string Name of web service script to call
+ * @param string Service to call inside given web service script
+ * @return mixed Array of results (or false on error)
+ */
 function chamilo_soap_call() {
   // Prepare params
   $params = func_get_args();
@@ -82,7 +93,9 @@ function chamilo_soap_call() {
 }
 
 /**
- * Implementation of hook_user_categories().
+ * Implementation of hook_user_categories(). 
+ * Makes a tab appear in user profile to edit Chamilo settings.
+ * @return array Array containing name, title and weight of the profile tab
  */
 function chamilo_user_categories() {
   return array(array(
@@ -112,6 +125,11 @@ function chamilo_menu_alter(&$items){
 
 /**
  * Implementation of hook_form_FORM_ID_alter()
+ * Shows all user settings in the Chamilo settings tab in user profile
+ * @param object The form object
+ * @param object The form_state object (not really necssary)
+ * @param string The form ID (not really necessary here)
+ * @return void Alters objects passed by reference
  */
 function chamilo_form_user_profile_form_alter(&$form, &$form_state, $form_id) {
   if (is_object($form['#user']) && !empty($form['#user']->uid)) {
@@ -273,6 +291,11 @@ function chamilo_user_update(&$edit, &$account, $category = NULL) {
   }
 }
 
+/**
+ * Loads user's Chamilo settings from DB
+ * @param object Account object
+ * @return void Alters the account object
+ */
 function chamilo_load_user_data(&$account) {
   $result = db_query('SELECT duser, apikey, course_visibility, agenda_time_frame FROM {chamilo_user} WHERE user_id = (:uid)', array(':uid' => $account->uid));
 
@@ -293,6 +316,7 @@ function chamilo_load_user_data(&$account) {
     'agenda_time_frame' => '',
   );
 }
+
 
 function chamilo_save_user_data(&$edit, &$account, $category, $register = FALSE) {
   $data = &$edit['chamilo_settings'];
@@ -349,6 +373,11 @@ function chamilo_menu() {
   return $items;
 }
 
+/**
+ * Gets the Chamilo signature (personal or global) to call the web services
+ * @param int Type of signature (flag)
+ * @return string The signature to join to any web service call
+ */
 function chamilo_get_signature($type = CHAMILO_GLOBAL_SIGNATURE) {
   global $user;
 
