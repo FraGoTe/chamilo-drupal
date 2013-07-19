@@ -1,4 +1,4 @@
-<?php                       
+<?php
 
 /**
  * @file
@@ -16,17 +16,16 @@ define('CHAMILO_GLOBAL_SIGNATURE', 1);
 define('CHAMILO_PERUSER_SIGNATURE', 2);
 
 /**
- * Implementation of hook_init().
+ * Implementation of hook_boot()
+ * This hook is run at the beginning of the page request (even for cached page)
  */
-/* SSO
-function chamilo_init() {
+function chamilo_boot() {
   global $user;
   // Implementation of Master SSO server
   if ($user->uid && isset($_GET['sso_referer'])) {
     chamilo_sso_auth($user);
   }
 }
-*/
 
 /**
  * Returns the protocol used to connect to Chamilo
@@ -41,14 +40,21 @@ function chamilo_sso_protocol() {
  * Given a drupal account, redirect to Vanity server including login info.
  * @param object User account object
  */
-/* TODO
 function chamilo_sso_auth($account) {
   global $base_path;
+
+  // Makes sure the filter module is loaded
+  // (this can happen when function is called early in the bootstrap (from hook_boot)
+  if (!function_exists('filter_xss')) {
+    include_once('includes/common.inc');
+  }
+  
   $master_auth_uri = $base_path .'?q=user';
+
   // Master Cookie
   $sso = array(
     'username' => $account->name,
-    'secret' => sha1($account->pass),
+    'secret' => sha1($account->name.filter_xss($_GET['sso_challenge']).variable_get('chamilo_appkey', '')),
     'master_domain' => filter_xss($_SERVER['HTTP_HOST']),
     'master_auth_uri' => $master_auth_uri,
     'lifetime' => time() + 3600,
@@ -60,12 +66,8 @@ function chamilo_sso_auth($account) {
   $url = chamilo_sso_protocol() . filter_xss($_SERVER['HTTP_HOST']) . $master_auth_uri;
   $params = 'sso_referer='. urlencode($url) .'&sso_cookie='. urlencode($cookie);
   header('Location: '. filter_xss($_GET['sso_referer']) .'?'. $params);
-?><html>
-<head><title><?php print t('Redirection');?></title>
-</head><body><?php print t('Please wait...');?></body></html><?php
   exit;
 }
-*/
 
 /**
  * Builds a SOAP call to Chamilo web services with the given parameters
@@ -214,15 +216,14 @@ function chamilo_field_extra_fields() {
 */
 
 /**
- * Implementation of hook_user().
+ * Implementation of hook_user_login().
+ * Called when the user just logged in
  */
-/* TODO
 function chamilo_user_login(&$edit, &$account) {
   if ($account->uid && isset($_GET['sso_referer'])) {
     chamilo_sso_auth($account);
   }
 }
-*/
 
 /**
  * Implementation of hook_user_load();
