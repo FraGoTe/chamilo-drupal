@@ -1,0 +1,11 @@
+name = "Chamilo for Übercart"
+description = "A Drupal module to integrate your Drupal/Übercart based webshop with the Chamilo learning management solution"
+package = Chamilo
+core = "7.x"
+
+configure = admin/store/settings/chamilo
+files[] = uc_chamilo.module
+files[] = uc_chamilo.admin.inc
+files[] = uc_chamilo.install
+
+version = "7.x-1.x-dev"
