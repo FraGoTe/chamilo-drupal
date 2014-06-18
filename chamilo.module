@@ -14,6 +14,7 @@ define('CHAMILO_DEFAULT_IPP', 10);
 // signature types
 define('CHAMILO_GLOBAL_SIGNATURE', 1);
 define('CHAMILO_PERUSER_SIGNATURE', 2);
+define('CHAMILO_SECRET_KEY', 3);
 
 /**
  * Implementation of hook_boot()
@@ -42,7 +43,6 @@ function chamilo_sso_protocol() {
  */
 function chamilo_sso_auth($account) {
   global $base_path;
-
   // Makes sure the filter module is loaded
   // (this can happen when function is called early in the bootstrap (from hook_boot)
   if (!function_exists('filter_xss')) {
@@ -83,12 +83,16 @@ function chamilo_soap_call() {
   ini_set('soap.wsdl_cache_enabled', 0);
   // Init SOAP client
   $service_path = chamilo_get_service_path($service);
+  
   if ($service_path) {
-    $client = new SoapClient($service_path);
-    $chamilo_user = variable_get('chamilo_user', '');
-    $signature = chamilo_get_signature();
+    $client = new SoapClient($service_path);    
     // Make call and its return result
-    return call_user_method_array($action, $client, array_merge(array($chamilo_user, $signature), $params));
+    $tmpParams = current($params);
+    if (empty($tmpParams['secret_key'])) {
+        var_dump($action, $params);
+        exit;
+    }
+    return $client->__soapCall($action, $params);
   } else {
     return FALSE;
   }
@@ -244,6 +248,63 @@ function chamilo_user_load($users) {
 }
 */
 
+
+/**
+ * Implementation of hook_user_insert().
+ */
+function chamilo_user_insert(&$edit, &$account, $category = NULL) {
+  $admin_access = user_access('administer chamilo');
+  $connect_access = user_access('connect with own Chamilo account');
+  $sync_access = user_access('sync users with Chamilo accounts');
+    if (!isset($edit['chamilo_settings']['sync_account']) && ($sync_access || $admin_access)) {
+        $users = variable_get('chamilo_accounts', array());
+        $params = array(
+                'username' => $edit['name'],
+                'secret_key' => chamilo_get_signature(CHAMILO_SECRET_KEY),
+        );
+        // Check as chamilo account
+        $chamilo_account = chamilo_soap_call('registration', 'WSGetUserFromUsername', $params);
+        // Deterimine wether to Create or Override account at Chamilo
+        if (empty($chamilo_account->user_id)) {
+            $params = array(
+                'loginname' => $edit['name'],
+                'password' => ($edit['pass'] ? $edit['pass'] : $account->pass),
+                'password_crypted' => 1,
+                'email' => $edit['mail'],
+                'firstname' => '',
+                'lastname' => '',
+                'language' => '',
+                'phone' => '',
+                'expiration_date' => '',
+                'original_user_id_name' => '',
+                'original_user_id_value' => '',
+                'extra' => '',
+                'active' => '1',
+                'status' => '1',
+                'secret_key' => chamilo_get_signature(CHAMILO_SECRET_KEY),
+            );
+            // Make call
+            $user = chamilo_soap_call('registration', 'WSCreateUser', $params);
+            // Save
+            if (!isset($users[$account->uid])) {
+              $users[$account->uid] = $account->uid;
+              variable_set('chamilo_accounts', $users);
+            }
+            drupal_set_message('User succesfully syncronized with Chamilo.');
+        }        
+      } else { // Unlink account
+        // Save
+        if (isset($users[$account->uid])) {
+          unset($users[$account->uid]);
+          variable_set('chamilo_accounts', $users);
+        }
+      }
+    if ($connect_access || $admin_access) {
+      chamilo_save_user_data($edit, $account, $category);
+    }
+  
+}
+
 /**
  * Implementation of hook_user_update().
  */
@@ -321,7 +382,6 @@ function chamilo_load_user_data(&$account) {
 
 function chamilo_save_user_data(&$edit, &$account, $category, $register = FALSE) {
   $data = &$edit['chamilo_settings'];
-
   // Pre-process courses visibility
   if (!is_array($data['course_visibility'])) {
     $data['course_visibility'] = array($data['course_visibility']);
@@ -364,6 +424,7 @@ function chamilo_save_user_data(&$edit, &$account, $category, $register = FALSE)
  * Implementation of hook_menu().
  */
 function chamilo_menu() {
+  var_dump("LINE: " . __LINE__, __FUNCTION__);exit;
   $items['admin/config/system/chamilo'] = array(
     'title' => 'Chamilo',
     'description' => 'Configure integration settings with Chamilo.',
@@ -389,7 +450,10 @@ function chamilo_get_signature($type = CHAMILO_GLOBAL_SIGNATURE) {
         return sha1($user->chamilo_settings['user'] . $user->chamilo_settings['apikey']);
       }
       break;
-
+     case CHAMILO_SECRET_KEY:
+         $chamilo_apikey = sha1($_SERVER['REMOTE_ADDR'] . variable_get('chamilo_appkey', ''));
+         return $chamilo_apikey;
+     break;
     default:
     case CHAMILO_GLOBAL_SIGNATURE:
       $chamilo_user = variable_get('chamilo_user', '');
@@ -424,7 +488,6 @@ function chamilo_block_info() {
  */
 function chamilo_block_view($delta = '') {
   global $user;
-  
   chamilo_load_user_data($user);
 
   if (variable_get('chamilo_server', '') == '') {
@@ -492,6 +555,7 @@ function chamilo_block_view($delta = '') {
  * Implementation of hook_block_configure().
  */
 function chamilo_block_configure($delta = '') {
+  var_dump("LINE: " . __LINE__, __FUNCTION__);exit;
   if ($delta == 'trainings') {
     $form['items'] = array(
       '#type' => 'checkboxes',
@@ -507,6 +571,7 @@ function chamilo_block_configure($delta = '') {
  * Implementation of hook_block_save().
  */
 function chamilo_block_save($delta = '', $edit = array()) {
+  var_dump("LINE: " . __LINE__, __FUNCTION__);exit;
   if ($delta == 'trainings') {
     variable_set('chamilo_courses_block_items', $edit['items']);
   }
@@ -516,6 +581,7 @@ function chamilo_block_save($delta = '', $edit = array()) {
  * Implementation of hook_theme().
  */
 function chamilo_theme($existing, $type, $theme, $path) {
+  var_dump("LINE: " . __LINE__, __FUNCTION__);exit;
   return array(
     'chamilo_course_list' => array(
       'arguments' => array('courses' => NULL),
@@ -619,8 +685,9 @@ function chamilo_get_service_path($service) {
   static $services;
   $chamilo_server = variable_get('chamilo_server', '');
   if (!isset($services)) {
-    $services = array('courses_list', 'user_info');
+    $services = array('courses_list', 'user_info', 'registration');
   }
+
   if (in_array($service, $services)) {
     return chamilo_sso_protocol(). $chamilo_server . CHAMILO_BASE_URL .'/'. $service .'.soap.php?wsdl';
   }
