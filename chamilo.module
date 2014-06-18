@@ -87,11 +87,6 @@ function chamilo_soap_call() {
   if ($service_path) {
     $client = new SoapClient($service_path);    
     // Make call and its return result
-    $tmpParams = current($params);
-    if (empty($tmpParams['secret_key'])) {
-        var_dump($action, $params);
-        exit;
-    }
     return $client->__soapCall($action, $params);
   } else {
     return FALSE;
@@ -256,6 +251,7 @@ function chamilo_user_insert(&$edit, &$account, $category = NULL) {
   $admin_access = user_access('administer chamilo');
   $connect_access = user_access('connect with own Chamilo account');
   $sync_access = user_access('sync users with Chamilo accounts');
+  $users = array();
     if (!isset($edit['chamilo_settings']['sync_account']) && ($sync_access || $admin_access)) {
         $users = variable_get('chamilo_accounts', array());
         $params = array(
@@ -276,8 +272,8 @@ function chamilo_user_insert(&$edit, &$account, $category = NULL) {
                 'language' => '',
                 'phone' => '',
                 'expiration_date' => '',
-                'original_user_id_name' => '',
-                'original_user_id_value' => '',
+                'original_user_id_name' => 'drupal_user_id',
+                'original_user_id_value' => $account->uid,
                 'extra' => '',
                 'active' => '1',
                 'status' => '1',
@@ -285,6 +281,7 @@ function chamilo_user_insert(&$edit, &$account, $category = NULL) {
             );
             // Make call
             $user = chamilo_soap_call('registration', 'WSCreateUser', $params);
+
             // Save
             if (!isset($users[$account->uid])) {
               $users[$account->uid] = $account->uid;
@@ -390,7 +387,7 @@ function chamilo_save_user_data(&$edit, &$account, $category, $register = FALSE)
   $data['course_visibility'] = count($data['course_visibility']) ? serialize($data['course_visibility']) : NULL;
   
   // Pre-process agenta time frame
-  if ($data['agenda_time_frame'] == '0') {
+  if (!empty($data['agenda_time_frame']) && $data['agenda_time_frame'] == '0') {
     $data['agenda_time_frame'] = '';
   }
   // Look for data
